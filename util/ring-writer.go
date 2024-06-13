@@ -100,7 +100,7 @@ func (rb *RingWriter[T, F]) Reduce(size int) {
 }
 
 func (rb *RingWriter[T, F]) Dispose() {
-	for !rb.disposeFlag.CompareAndSwap(0,-1) {
+	for !rb.disposeFlag.CompareAndSwap(0, -1) {
 		runtime.Gosched()
 	}
 	rb.Value.Ready()
@@ -119,10 +119,12 @@ func (rb *RingWriter[T, F]) Step() (normal bool) {
 	} else {
 		rb.Reduce(1)         //抛弃还有订阅者的节点
 		rb.Ring = rb.Glow(1) //补充一个新节点
-		rb.Value.StartWrite()
+		normal = rb.Value.StartWrite()
 	}
 	rb.Value.SetSequence(nextSeq)
-	rb.LastValue.Ready()
+	if normal {
+		rb.LastValue.Ready()
+	}
 	rb.disposeFlag.Add(-1)
 	return
 }
