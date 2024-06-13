@@ -488,8 +488,8 @@ func (s *Stream) run() {
 							if time.Since(s.StartTime) > timeout {
 								lost = true
 								s.action(ACTION_CLOSE)
+								continue
 							}
-							continue
 						} else if s.Publisher != nil && s.Publisher.IsClosed() {
 							s.Warn("publish is closed", zap.Error(context.Cause(s.publisher)), zap.String("ptr", fmt.Sprintf("%p", s.publisher.Context)))
 							lost = true

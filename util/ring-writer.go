@@ -1,7 +1,6 @@
 package util
 
 import (
-	"runtime"
 	"sync/atomic"
 )
 
@@ -88,9 +87,8 @@ func (rb *RingWriter[T, F]) Reduce(size int) {
 	for p := r.Next(); p != r; {
 		next := p.Next() //先保存下一个节点
 		if p.Value.StartWrite() {
-			rb.recycle(p)
-			p.Value.Reset()
 			p.Value.Ready()
+			rb.recycle(p)
 		} else {
 			p.Prev().Unlink(1).Value.Reset()
 		}
@@ -100,14 +98,14 @@ func (rb *RingWriter[T, F]) Reduce(size int) {
 }
 
 func (rb *RingWriter[T, F]) Dispose() {
-	for !rb.disposeFlag.CompareAndSwap(0, -1) {
-		runtime.Gosched()
+	if rb.disposeFlag.Add(-2) == -2 {
+		rb.Value.Ready()
 	}
-	rb.Value.Ready()
 }
 
 func (rb *RingWriter[T, F]) Step() (normal bool) {
-	if rb.disposeFlag.Add(1) != 1 {
+	if !rb.disposeFlag.CompareAndSwap(0, 1) {
+		// already disposed
 		return
 	}
 	rb.LastValue = rb.Value
@@ -119,13 +117,15 @@ func (rb *RingWriter[T, F]) Step() (normal bool) {
 	} else {
 		rb.Reduce(1)         //抛弃还有订阅者的节点
 		rb.Ring = rb.Glow(1) //补充一个新节点
-		normal = rb.Value.StartWrite()
+		if !rb.Value.StartWrite() {
+			panic("can't start write")
+		}
 	}
 	rb.Value.SetSequence(nextSeq)
-	if normal {
-		rb.LastValue.Ready()
+	rb.LastValue.Ready()
+	if !rb.disposeFlag.CompareAndSwap(1, 0) {
+		rb.Value.Ready()
 	}
-	rb.disposeFlag.Add(-1)
 	return
 }
 
