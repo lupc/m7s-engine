@@ -50,15 +50,22 @@ func (pub *Puller) startPull(puller IPuller) {
 	if oldPuller, loaded := Pullers.LoadOrStore(streamPath, puller); loaded {
 		pub := oldPuller.(IPuller).GetPublisher()
 		stream = pub.Stream
+		isReturn := true
 		if stream != nil {
 			puller.Error("puller already exists", zap.Int8("streamState", int8(stream.State)))
 			if stream.State == STATE_CLOSED {
 				oldPuller.(IPuller).Stop(zap.String("reason", "dead puller"))
+				Pullers.Delete(streamPath)
+				Pullers.Store(streamPath, puller)
+				isReturn = false
 			}
 		} else {
 			puller.Error("puller already exists", zap.Time("createAt", pub.StartTime))
 		}
-		return
+		if isReturn {
+			return
+		}
+
 	}
 	defer func() {
 		Pullers.Delete(streamPath)
