@@ -86,6 +86,7 @@ func (r *AVRingReader) ReadFrame(mode int) (err error) {
 		case SUBMODE_BUFFER:
 			if r.Track.HistoryRing != nil {
 				startRing = r.Track.HistoryRing
+				r.Info("buffer mode", zap.Duration("time", r.Track.LastValue.Timestamp-r.Track.HistoryRing.Value.Timestamp))
 			}
 			r.State = READSTATE_NORMAL
 		}
@@ -120,6 +121,11 @@ func (r *AVRingReader) ReadFrame(mode int) (err error) {
 	case READSTATE_NORMAL:
 		if err = r.readFrame(); err != nil {
 			return
+		}
+		if mode != SUBMODE_REAL {
+			if fast := r.Value.Timestamp - r.FirstTs - time.Since(r.startTime); fast > 0 && fast < time.Second {
+				time.Sleep(fast)
+			}
 		}
 	}
 	r.AbsTime = uint32((r.Value.Timestamp - r.SkipTs).Milliseconds())

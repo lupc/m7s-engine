@@ -279,7 +279,9 @@ func (av *Media) Flush() {
 	bufferTime := av.BufferTime
 	if bufferTime > 0 && av.IDRingList.IDRList.Length > 1 && deltaTS(curValue.Timestamp, av.IDRingList.IDRList.Next.Next.Value.Value.Timestamp) > bufferTime {
 		av.ShiftIDR()
-		av.narrow(int(curValue.Sequence - av.HistoryRing.Value.Sequence))
+		if canReduce := int(curValue.Sequence-av.HistoryRing.Value.Sequence) - 5; canReduce > 0 {
+			av.narrow(canReduce)
+		}
 	}
 	// 下一帧为订阅起始帧，即将覆盖，需要扩环
 	if nextValue == av.IDRing || nextValue == av.HistoryRing {

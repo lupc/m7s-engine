@@ -68,6 +68,8 @@ func Run(ctx context.Context, conf any) (err error) {
 		}
 		if ConfigRaw, err = os.ReadFile(v); err != nil {
 			log.Warn("read config file error:", err.Error())
+		} else {
+			log.Info("load config file:", v)
 		}
 	case []byte:
 		ConfigRaw = v

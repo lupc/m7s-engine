@@ -12,7 +12,6 @@ func (emptyLocker) Unlock() {}
 var EmptyLocker emptyLocker
 
 type IDataFrame[T any] interface {
-	Init()                // 初始化
 	Reset()               // 重置数据,复用内存
 	Ready()               // 标记为可读取
 	ReaderEnter()         // 读取者数量+1
@@ -39,7 +38,6 @@ func (rb *RingWriter[T, F]) create(n int) (ring *Ring[F]) {
 	ring = NewRing[F](n)
 	for p, i := ring, n; i > 0; p, i = p.Next(), i-1 {
 		p.Value = rb.constructor()
-		p.Value.Init()
 	}
 	return
 }
@@ -72,9 +70,6 @@ func (rb *RingWriter[T, F]) Glow(size int) (newItem *Ring[F]) {
 }
 
 func (rb *RingWriter[T, F]) recycle(r *Ring[F]) {
-	rb.poolSize++
-	r.Value.Init()
-	r.Value.Reset()
 	if rb.pool == nil {
 		rb.pool = r
 	} else {
@@ -83,17 +78,25 @@ func (rb *RingWriter[T, F]) recycle(r *Ring[F]) {
 }
 
 func (rb *RingWriter[T, F]) Reduce(size int) {
-	r := rb.Unlink(size)
-	for p := r.Next(); p != r; {
-		next := p.Next() //先保存下一个节点
+	p := rb.Unlink(size)
+	pSize := size
+	for i := 0; i < size; i++ {
 		if p.Value.StartWrite() {
+			p.Value.Reset()
 			p.Value.Ready()
-			rb.recycle(p)
+			rb.poolSize++
 		} else {
-			p.Prev().Unlink(1).Value.Reset()
+			p.Value.Reset()
+			if pSize == 1 {
+				return
+			}
+			p = p.Prev()
+			p.Unlink(1)
+			pSize--
 		}
-		p = next
+		p = p.Next()
 	}
+	rb.recycle(p)
 	rb.Size -= size
 }
 

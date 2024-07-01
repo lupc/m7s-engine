@@ -1,6 +1,9 @@
 package util
 
-import "sync"
+import (
+	"sort"
+	"sync"
+)
 
 type Map[K comparable, V any] struct {
 	sync.Map
@@ -65,4 +68,29 @@ func (m *Map[K, V]) Range(f func(K, V)) {
 		f(k.(K), v.(V))
 		return true
 	})
+}
+
+func (m *Map[K, V]) RangeSorted(f func(K, V), compare func(K, K) bool) {
+	// Collect keys and values
+	var pairs []struct {
+		key K
+		val V
+	}
+	m.Map.Range(func(k, v interface{}) bool {
+		pairs = append(pairs, struct {
+			key K
+			val V
+		}{k.(K), v.(V)})
+		return true
+	})
+
+	// Sort by keys using the compare function
+	sort.Slice(pairs, func(i, j int) bool {
+		return compare(pairs[i].key, pairs[j].key)
+	})
+
+	// Apply function in sorted order
+	for _, pair := range pairs {
+		f(pair.key, pair.val)
+	}
 }

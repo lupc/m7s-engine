@@ -98,10 +98,6 @@ func (df *DataFrame[T]) Ready() {
 	df.lock.Unlock()
 }
 
-func (df *DataFrame[T]) Init() {
-
-}
-
 func (df *DataFrame[T]) Reset() {
 	df.BytesIn = 0
 	df.DeltaTime = 0
